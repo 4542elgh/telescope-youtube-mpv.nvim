@@ -181,13 +181,13 @@ local playlist = function()
         return
     end
     vim.cmd(
-        "terminal mpv " .. 
-        opts.playlistUrl .. 
-        " --window-minimized=" .. 
-        (opts.minimized and "yes" or "no") .. 
-        (opts.shuffle and " --shuffle" or "") .. 
-        (opts.noVideo and " --no-video --force-window" or "") .. 
-        " --volume=" .. 
+        "terminal mpv --ytdl-raw-options=\"yes-playlist=\" \"" ..
+        opts.playlistUrl ..
+        "\" --window-minimized=" ..
+        (opts.minimized and "yes" or "no") ..
+        (opts.shuffle and " --shuffle" or "") ..
+        (opts.noVideo and " --no-video --force-window" or "") ..
+        " --volume=" ..
         opts.volume
     )
     vim.cmd("file " .. opts.mpvInstanceName)
