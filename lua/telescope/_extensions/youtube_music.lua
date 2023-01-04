@@ -1,8 +1,8 @@
 -- Check telescope is installed
-local ok, telescope = pcall(require, 'telescope')
+local ok, _ = pcall(require, 'telescope')
 
 if not ok then
-    error 'Install nvim-telescope/telescope.nvim to use 4542elgh/telescope-youtube-music.nvim.'
+    vim.notify('Install nvim-telescope/telescope.nvim to use 4542elgh/telescope-youtube-music.nvim.', vim.log.levels.ERROR)
 end
 
 -- Telescope utils
@@ -20,7 +20,7 @@ local job = require("plenary.job")
 local default_opts = {
     volume = 40,
     maxResults = 25,
-    noVideo = false,
+    noVideo = true,
     shuffle = false,
     minimized = true,
     envar = os.getenv("Youtube_API_KEY"),
@@ -46,13 +46,22 @@ local function urlencode(url)
   return url
 end
 
+local remove_existing_instance = function()
+    for _, buf_num in ipairs(vim.api.nvim_list_bufs()) do
+        if string.find(vim.api.nvim_buf_get_name(buf_num), '\\' .. opts.mpvInstanceName) then
+            vim.cmd(buf_num .. "bw!")
+            return
+        end
+    end
+end
+
 -- Make API call to Youtube API
 -- Thanks to jackMort for api call function structure
 -- https://github.com/jackMort/ChatGPT.nvim/blob/main/lua/chatgpt/api.lua
-function api_call(cb)
-    local url = "https://youtube.googleapis.com/youtube/v3/search?part=snippet&".. 
-        "maxResults=" .. opts.maxResults .. 
-        "&q=" .. opts.query .. 
+local api_call = function(cb)
+    local url = "https://youtube.googleapis.com/youtube/v3/search?part=snippet&"..
+        "maxResults=" .. opts.maxResults ..
+        "&q=" .. opts.query ..
         "&key=" .. opts.envar
     job:new({
         command = "curl",
@@ -66,6 +75,20 @@ function api_call(cb)
         end),
     })
     :start()
+end
+
+local mpv_call = function()
+    vim.cmd(
+        "terminal mpv" ..
+        (opts.isPlayList and " --ytdl-raw-options=\"yes-playlist=\" " or "") ..
+        opts.url ..
+        " --window-minimized=" .. (opts.minimized and "yes" or "no") ..
+        (opts.shuffle and " --shuffle" or "") ..
+        (opts.noVideo and " --no-video --force-window" or "") ..
+        " --volume=" .. opts.volume
+    )
+    remove_existing_instance()
+    vim.cmd("file " .. opts.mpvInstanceName)
 end
 
 -- Handle JSON response
@@ -85,8 +108,8 @@ function handle_response(response, exit_code, cb)
         for _, value in ipairs(json.items) do
             if value.id.videoId ~= nil then
                 table.insert(res, {
-                    channel = value.snippet.channelTitle, 
-                    title = value.snippet.title, 
+                    channel = value.snippet.channelTitle,
+                    title = value.snippet.title,
                     videoId = value.id.videoId
                 })
             end
@@ -101,16 +124,12 @@ local function make_entry()
     -- Spacing
     local displayer = entry_display.create {
         separator = "",
-        items = {
-            { remaining = true }
-        }
+        items = {{ remaining = true }}
     }
 
     -- What content is displaying
     local make_display = function(entry)
-        return displayer {
-            entry.title,
-        }
+        return displayer { entry.title }
     end
 
     -- Internal sorting
@@ -146,14 +165,8 @@ local make_picker = function()
         attach_mappings = function(prompt_bufnr)
             actions.select_default:replace(function()
                 actions.close(prompt_bufnr)
-                vim.cmd(
-                    "terminal mpv https://www.youtube.com/watch?" ..
-                    "v=" .. action_state.get_selected_entry().videoId ..
-                    " --window-minimized=" .. (opts.minimized and "yes" or "no") ..
-                    (opts.noVideo and " --no-video --force-window" or "") .. 
-                    " --volume=" .. opts.volume
-                )
-                vim.cmd("file " .. opts.mpvInstanceName)
+                opts.url = "https://www.youtube.com/watch?v=" .. action_state.get_selected_entry().videoId
+                mpv_call()
             end)
             return true
         end,
@@ -162,35 +175,30 @@ end
 
 -- Single song with Telescope selection
 local single = function()
+    opts.isPlayList = true
     opts.query = vim.fn.input("Search: ")
-    opts.query = urlencode(opts.query)
     if opts.query == "" then
         vim.notify("Search query cannot be empty", vim.log.levels.ERROR)
         return
+    else
+        opts.query = urlencode(opts.query)
+        api_call(function()
+            make_picker()
+        end)
     end
-    api_call(function()
-        make_picker()
-    end)
 end
 
 -- Playlist just dump the entire url into youtube-dlp
 local playlist = function()
-    opts.playlistUrl= vim.fn.input("Youtube Playlist URL(include https://): ")
-    if opts.playlistUrl == "" then
+    opts.url = vim.fn.input("Youtube Playlist URL(include https://): ")
+    opts.isPlayList = true
+    if opts.url == "" then
         vim.notify("Play list cannot be empty", vim.log.levels.ERROR)
         return
+    else
+        opts.url = "\"" .. opts.url .. "\""
+        mpv_call()
     end
-    vim.cmd(
-        "terminal mpv --ytdl-raw-options=\"yes-playlist=\" \"" ..
-        opts.playlistUrl ..
-        "\" --window-minimized=" ..
-        (opts.minimized and "yes" or "no") ..
-        (opts.shuffle and " --shuffle" or "") ..
-        (opts.noVideo and " --no-video --force-window" or "") ..
-        " --volume=" ..
-        opts.volume
-    )
-    vim.cmd("file " .. opts.mpvInstanceName)
 end
 
 return require("telescope").register_extension {

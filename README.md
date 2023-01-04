@@ -1,4 +1,4 @@
-# Telescope Youtube Music integration
+[#](#) Telescope Youtube Music integration
 [Telescope](https://github.com/nvim-telescope/telescope.nvim) picker for playing youtube music via [MPV](https://mpv.io/) and [Youtube-DLP](https://github.com/yt-dlp/yt-dlp) integration.
 
 ## How does it look?
@@ -7,7 +7,7 @@ Using <img src="https://media.tenor.com/nBt6RZkFJh8AAAAi/never-gonna.gif" width=
 <img src="https://user-images.githubusercontent.com/17227723/210258116-fc90bf2d-59e1-4fdd-9647-b7ebc775834f.png" alt="drawing" width="500">
 
 ## Why?
-One of the features I miss from Emacs is Ivy-Youtube. Able to manage youtube music from editor is very convenient. Thus I made this plugin to mimic those features.
+One of the features I miss from Emacs is [Ivy-Youtube](https://github.com/squiter/ivy-youtube). Able to manage youtube music from editor is very convenient. Thus I made this plugin to mimic those features.
 
 ## Installation
 ### Binary
@@ -58,12 +58,12 @@ require("telescope").setup({
             -- Probably wont exhaust your quota (refresh daily) but it is here if you need it
             maxResults = 25,
             -- Save bandwidth, audio only
-            noVideo = false,
+            noVideo = true,
             -- Only for playlist
             shuffle = false,
             -- MPV will minimize on launch
             minimized = true,
-            -- This is what shows in your buffer list
+            -- This is what shows in your buffer list, only one instance will exist at a time
             mpvInstanceName = "MPV Youtube Instance",
             -- This is what shows in your Telescope prompt, right above input box
             promptTitle = "Youtube MPV Youtube-DL",
@@ -74,9 +74,7 @@ require("telescope").setup({
 ```
 
 ## Usage
-
 The extension provides the following picker:<br/>
-
 Lua:
 ```lua
 -- Single song search
